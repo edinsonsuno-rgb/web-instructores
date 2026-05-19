@@ -36,7 +36,7 @@ function EjercicioCard({ ej, onEdit, onDelete }: {
 
   useEffect(() => {
     if (!ej.foto_inicio_url || !ej.foto_fin_url) return
-    const t = setInterval(() => setShowSecond(s => !s), 1200)
+    const t = setInterval(() => setShowSecond(s => !s), 3000)
     return () => clearInterval(t)
   }, [ej.foto_inicio_url, ej.foto_fin_url])
 
@@ -47,7 +47,8 @@ function EjercicioCard({ ej, onEdit, onDelete }: {
         {ej.foto_inicio_url ? (
           <>
             <img src={ej.foto_inicio_url} alt={ej.nombre}
-              className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-700 ${showSecond ? 'opacity-0' : 'opacity-100'}`}
+              style={{ transition: 'opacity 1.5s ease-in-out' }}
+              className={`absolute inset-0 w-full h-full object-contain ${showSecond ? 'opacity-0' : 'opacity-100'}`}
             />
             {ej.foto_fin_url && (
               <img src={ej.foto_fin_url} alt={ej.nombre}
