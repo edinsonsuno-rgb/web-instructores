@@ -1,24 +1,34 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { createClient } from '@supabase/supabase-js'
 import { supabase, Alumna } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import Avatar from '@/components/ui/Avatar'
 import { NivelBadge, ProgresBar, EmptyState, Modal } from '@/components/ui/index'
 import toast from 'react-hot-toast'
 
+// Cliente sin sesión persistente — para crear cuentas sin afectar la sesión activa
+const supabaseAuth = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  { auth: { persistSession: false } }
+)
+
 const NIVELES = ['Principiante', 'Intermedio', 'Avanzado']
 
 export default function AlumnasPage() {
-  const [alumnas, setAlumnas] = useState<Alumna[]>([])
-  const [loading, setLoading] = useState(true)
-  const [busqueda, setBusqueda] = useState('')
-  const [modal, setModal] = useState(false)
+  const { user } = useAuth()
+  const [alumnas, setAlumnas]     = useState<Alumna[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [busqueda, setBusqueda]   = useState('')
+  const [modal, setModal]         = useState(false)
   const [guardando, setGuardando] = useState(false)
   const navigate = useNavigate()
 
   const [form, setForm] = useState({
     nombre: '', email: '', telefono: '', objetivo: '',
     nivel: 'Principiante', peso_inicial: '', peso_objetivo: '',
-    fecha_inicio: new Date().toISOString().split('T')[0], notas: '', activa: true
+    fecha_inicio: new Date().toISOString().split('T')[0], notas: '', activa: true,
   })
 
   useEffect(() => { cargar() }, [])
@@ -36,23 +46,53 @@ export default function AlumnasPage() {
     e.preventDefault()
     if (!form.nombre.trim()) { toast.error('Ingresa el nombre'); return }
     setGuardando(true)
+
+    // 1. Insertar alumna en la base de datos
     const { data, error } = await supabase.from('alumnas').insert({
       ...form,
-      peso_inicial: form.peso_inicial ? +form.peso_inicial : null,
+      instructor_id: user?.id ?? null,
+      peso_inicial:  form.peso_inicial  ? +form.peso_inicial  : null,
       peso_objetivo: form.peso_objetivo ? +form.peso_objetivo : null,
-      peso_actual: form.peso_inicial ? +form.peso_inicial : null,
+      peso_actual:   form.peso_inicial  ? +form.peso_inicial  : null,
     }).select().single()
+
     if (error) { toast.error('Error al guardar'); setGuardando(false); return }
-    toast.success('¡Alumna registrada!')
+
+    // 2. Si tiene email, crear cuenta Auth y enviar invitación
+    if (form.email.trim()) {
+      // Crear usuario sin afectar la sesión activa
+      await supabaseAuth.auth.signUp({
+        email:    form.email.trim(),
+        password: crypto.randomUUID(), // contraseña aleatoria, la cambiará con el link
+        options: {
+          data: { nombre: form.nombre, role: 'alumna' },
+        },
+      })
+
+      // Enviar email para que establezca su propia contraseña
+      await supabase.auth.resetPasswordForEmail(form.email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      toast.success(`¡Alumna registrada! Se envió invitación a ${form.email}`)
+    } else {
+      toast.success('¡Alumna registrada!')
+    }
+
     setModal(false)
-    setForm({ nombre: '', email: '', telefono: '', objetivo: '', nivel: 'Principiante', peso_inicial: '', peso_objetivo: '', fecha_inicio: new Date().toISOString().split('T')[0], notas: '', activa: true })
+    setForm({
+      nombre: '', email: '', telefono: '', objetivo: '', nivel: 'Principiante',
+      peso_inicial: '', peso_objetivo: '',
+      fecha_inicio: new Date().toISOString().split('T')[0], notas: '', activa: true,
+    })
     cargar()
     setGuardando(false)
     if (data) navigate(`/alumnos/${data.id}`)
   }
 
   const filtradas = alumnas.filter(a =>
-    !busqueda || a.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+    !busqueda ||
+    a.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
     a.email?.toLowerCase().includes(busqueda.toLowerCase())
   )
 
@@ -77,8 +117,8 @@ export default function AlumnasPage() {
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total', value: alumnas.length, color: 'text-df-pink' },
-          { label: 'Activas', value: alumnas.filter(a => a.activa).length, color: 'text-green-400' },
+          { label: 'Total',     value: alumnas.length,                              color: 'text-df-pink' },
+          { label: 'Activas',   value: alumnas.filter(a => a.activa).length,        color: 'text-green-400' },
           { label: 'Avanzadas', value: alumnas.filter(a => a.nivel === 'Avanzado').length, color: 'text-df-violet' },
         ].map((s, i) => (
           <div key={i} className="df-surface p-3 rounded-xl text-center">
@@ -127,7 +167,9 @@ export default function AlumnasPage() {
                 </div>
               )}
               <p className="text-[10px] text-df-muted mt-3">
-                Desde {a.fecha_inicio ? new Date(a.fecha_inicio).toLocaleDateString('es-CO', { month: 'short', year: 'numeric' }) : '—'}
+                Desde {a.fecha_inicio
+                  ? new Date(a.fecha_inicio).toLocaleDateString('es-CO', { month: 'short', year: 'numeric' })
+                  : '—'}
               </p>
             </Link>
           ))}
@@ -184,6 +226,17 @@ export default function AlumnasPage() {
                 placeholder="Observaciones, lesiones, restricciones..." className="df-input w-full resize-none"/>
             </div>
           </div>
+
+          {/* Aviso invitación */}
+          {form.email && (
+            <div className="flex items-start gap-2 bg-df-violet/10 border border-df-violet/20 rounded-xl px-3 py-2.5">
+              <i className="fa-solid fa-envelope text-df-violet text-xs mt-0.5"/>
+              <p className="text-xs text-df-muted">
+                Se enviará un correo a <span className="text-df-violet font-semibold">{form.email}</span> para que configure su contraseña.
+              </p>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={() => setModal(false)}
               className="flex-1 py-3 text-sm df-btn-outline border border-df-border rounded-xl text-df-muted">

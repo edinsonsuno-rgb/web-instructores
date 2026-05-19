@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase'
 import SetupName from '@/components/ui/SetupName'
 import VideosPage from '@/pages/VideosPage'
 import CatalogoPage from '@/pages/CatalogoPage'
+import ResetPasswordPage from '@/pages/ResetPasswordPage'
 
 function Guard({ children }: { children: React.ReactNode }) {
   const { user, loading, displayName } = useAuth()
@@ -55,6 +56,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage/>}/>
       <Route path="/" element={<Guard><AppLayout/></Guard>}>
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="catalogo" element={<CatalogoPage/>}/>
         <Route index element={<Navigate to="/dashboard" replace/>}/>
         <Route path="dashboard" element={<DashboardPage/>}/>
