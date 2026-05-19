@@ -4,6 +4,7 @@ import { supabase, Alumna, Sesion, Pago, AsignacionRutina } from '@/lib/supabase
 import Avatar from '@/components/ui/Avatar'
 import { NivelBadge, ProgresBar, EstadoSesionBadge, EstadoPagoBadge } from '@/components/ui/index'
 import toast from 'react-hot-toast'
+import RutinaAlumna from '@/components/ui/RutinaAlumna'
 
 export default function AlumnaDetallePage() {
   const { id } = useParams()
@@ -197,25 +198,7 @@ export default function AlumnaDetallePage() {
       )}
 
       {tab === 'rutinas' && (
-        <div className="space-y-3">
-          {asignaciones.length === 0
-            ? <p className="text-df-muted text-sm text-center py-10">Sin rutinas asignadas</p>
-            : asignaciones.map(a => (
-              <div key={a.id} className="df-surface p-4 rounded-xl flex items-center gap-3">
-                <div className="w-10 h-10 bg-df-purple/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <i className="fa-solid fa-dumbbell text-df-violet text-sm"/>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">{(a.rutina as any)?.nombre}</p>
-                  <p className="text-xs text-df-muted">{(a.rutina as any)?.categoria} · {(a.rutina as any)?.duracion_min} min</p>
-                  <ProgresBar pct={a.progreso} className="mt-2"/>
-                  <p className="text-[10px] text-df-muted mt-1">{a.progreso}% completado</p>
-                </div>
-                <NivelBadge nivel={(a.rutina as any)?.nivel}/>
-              </div>
-            ))
-          }
-        </div>
+        <RutinaAlumna alumnaId={alumna.id}/>
       )}
     </div>
   )
