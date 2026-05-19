@@ -8,6 +8,7 @@ const NAV = [
   { to: '/dashboard', icon: 'fa-solid fa-house', label: 'Inicio' },
   { to: '/alumnos',   icon: 'fa-solid fa-users', label: 'Alumnos' },
   { to: '/rutinas',   icon: 'fa-solid fa-dumbbell', label: 'Rutinas' },
+  { to: '/catalogo',  icon: 'fa-solid fa-layer-group', label: 'Catálogo'},
   { to: '/videos',    icon: 'fa-solid fa-play', label: 'Videos' },
   { to: '/agenda',    icon: 'fa-solid fa-calendar', label: 'Agenda' },
   { to: '/cobros',    icon: 'fa-solid fa-dollar-sign', label: 'Cobros' },
@@ -132,7 +133,7 @@ export default function AppLayout() {
         </div>
 
         {/* Bottom nav mobile */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-df-surface border-t border-df-border z-20 grid grid-cols-7">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-df-surface border-t border-df-border z-20 grid grid-cols-8">
           {NAV.map(item => (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) =>
