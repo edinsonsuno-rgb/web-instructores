@@ -6,10 +6,22 @@ import Avatar from '@/components/ui/Avatar'
 import { NivelBadge, ProgresBar, EmptyState, Modal } from '@/components/ui/index'
 import toast from 'react-hot-toast'
 
-// Cliente sin sesión persistente — para crear cuentas sin afectar la sesión activa
-
-
 const NIVELES = ['Principiante', 'Intermedio', 'Avanzado']
+
+// Crea cuenta Auth sin afectar la sesión activa (fetch puro, sin cliente JS)
+async function crearCuentaAlumna(email: string) {
+  await fetch(`${import.meta.env.VITE_SUPABASE_URL}/auth/v1/signup`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      email,
+      password: crypto.randomUUID(),
+    }),
+  })
+}
 
 export default function AlumnasPage() {
   const { user } = useAuth()
@@ -38,39 +50,42 @@ export default function AlumnasPage() {
   function set(k: string, v: any) { setForm(f => ({ ...f, [k]: v })) }
 
   async function guardar(e: React.FormEvent) {
-  e.preventDefault()
-  if (!form.nombre.trim()) { toast.error('Ingresa el nombre'); return }
-  setGuardando(true)
-  const { data, error } = await supabase.from('alumnas').insert({
-    ...form,
-    instructor_id: user?.id,
-    peso_inicial:  form.peso_inicial  ? +form.peso_inicial  : null,
-    peso_objetivo: form.peso_objetivo ? +form.peso_objetivo : null,
-    peso_actual:   form.peso_inicial  ? +form.peso_inicial  : null,
-  }).select().single()
+    e.preventDefault()
+    if (!form.nombre.trim()) { toast.error('Ingresa el nombre'); return }
+    setGuardando(true)
 
-  if (error) { toast.error('Error al guardar'); setGuardando(false); return }
+    // 1. Insertar alumna en la BD
+    const { data, error } = await supabase.from('alumnas').insert({
+      ...form,
+      instructor_id: user?.id ?? null,
+      peso_inicial:  form.peso_inicial  ? +form.peso_inicial  : null,
+      peso_objetivo: form.peso_objetivo ? +form.peso_objetivo : null,
+      peso_actual:   form.peso_inicial  ? +form.peso_inicial  : null,
+    }).select().single()
 
-  // Si tiene email, enviar invitación automáticamente
-  if (form.email.trim()) {
-    const { error: inviteError } = await supabase.functions.invoke('invite-alumna', {
-      body: { email: form.email.trim(), nombre: form.nombre.trim() }
-    })
-    if (inviteError) {
-      toast.error('Alumna creada pero no se pudo enviar el email de invitación')
+    if (error) { toast.error('Error al guardar'); setGuardando(false); return }
+
+    // 2. Si tiene email: crear cuenta + enviar link para crear contraseña
+    if (form.email.trim()) {
+      await crearCuentaAlumna(form.email.trim())
+      await supabase.auth.resetPasswordForEmail(form.email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      toast.success(`¡Alumna registrada! Le enviamos el acceso a ${form.email} 📧`)
     } else {
-      toast.success('¡Alumna registrada! Le enviamos el email para crear su contraseña 📧')
+      toast.success('¡Alumna registrada!')
     }
-  } else {
-    toast.success('¡Alumna registrada!')
-  }
 
-  setModal(false)
-  setForm({ nombre: '', email: '', telefono: '', objetivo: '', nivel: 'Principiante', peso_inicial: '', peso_objetivo: '', fecha_inicio: new Date().toISOString().split('T')[0], notas: '', activa: true })
-  cargar()
-  setGuardando(false)
-  if (data) navigate(`/alumnos/${data.id}`)
-}
+    setModal(false)
+    setForm({
+      nombre: '', email: '', telefono: '', objetivo: '', nivel: 'Principiante',
+      peso_inicial: '', peso_objetivo: '',
+      fecha_inicio: new Date().toISOString().split('T')[0], notas: '', activa: true,
+    })
+    cargar()
+    setGuardando(false)
+    if (data) navigate(`/alumnos/${data.id}`)
+  }
 
   const filtradas = alumnas.filter(a =>
     !busqueda ||
@@ -88,7 +103,6 @@ export default function AlumnasPage() {
         </button>
       </div>
 
-      {/* Search */}
       <div className="relative">
         <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-df-muted text-sm"/>
         <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
@@ -96,11 +110,10 @@ export default function AlumnasPage() {
           className="df-input w-full pl-10"/>
       </div>
 
-      {/* Stats bar */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total',     value: alumnas.length,                              color: 'text-df-pink' },
-          { label: 'Activas',   value: alumnas.filter(a => a.activa).length,        color: 'text-green-400' },
+          { label: 'Total',     value: alumnas.length,                                     color: 'text-df-pink' },
+          { label: 'Activas',   value: alumnas.filter(a => a.activa).length,               color: 'text-green-400' },
           { label: 'Avanzadas', value: alumnas.filter(a => a.nivel === 'Avanzado').length, color: 'text-df-violet' },
         ].map((s, i) => (
           <div key={i} className="df-surface p-3 rounded-xl text-center">
@@ -158,7 +171,6 @@ export default function AlumnasPage() {
         </div>
       )}
 
-      {/* Modal nueva alumna */}
       <Modal open={modal} onClose={() => setModal(false)} title="Nueva alumna">
         <form onSubmit={guardar} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -209,7 +221,6 @@ export default function AlumnasPage() {
             </div>
           </div>
 
-          {/* Aviso invitación */}
           {form.email && (
             <div className="flex items-start gap-2 bg-df-violet/10 border border-df-violet/20 rounded-xl px-3 py-2.5">
               <i className="fa-solid fa-envelope text-df-violet text-xs mt-0.5"/>
