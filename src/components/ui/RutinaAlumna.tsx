@@ -57,7 +57,7 @@ const MUSCULO_LABELS: Record<string, string> = {
 }
 
 function diaDeHoy(): string {
-  const map = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado']
+  const map = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab']
   return map[new Date().getDay()]
 }
 
