@@ -18,7 +18,8 @@ serve(async (req) => {
     )
 
     const { error } = await supabase.auth.admin.inviteUserByEmail(email, {
-      data: { display_name: nombre }
+      data: { display_name: nombre },
+      redirectTo: 'https://web-instructores.vercel.app/reset-password'
     })
 
     if (error) throw error

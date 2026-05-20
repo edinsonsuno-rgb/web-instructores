@@ -14,7 +14,7 @@ export default function ResetPasswordPage() {
   // Supabase redirige con el token en el hash — esperamos a que lo procese
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setReady(true)
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') setReady(true)
     })
     return () => subscription.unsubscribe()
   }, [])

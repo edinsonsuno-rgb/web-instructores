@@ -35,7 +35,7 @@ function Guard({ children }: { children: React.ReactNode }) {
 function InactivityGuard() {
   const timer = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
-    const TIMEOUT = 10 * 60 * 1000 // 10 minutos
+    const TIMEOUT = 10 * 60 * 1000
     const reset = () => {
       clearTimeout(timer.current)
       timer.current = setTimeout(() => supabase.auth.signOut(), TIMEOUT)
@@ -55,14 +55,14 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage/>}/>
+      <Route path="/reset-password" element={<ResetPasswordPage/>}/>
       <Route path="/" element={<Guard><AppLayout/></Guard>}>
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="catalogo" element={<CatalogoPage/>}/>
         <Route index element={<Navigate to="/dashboard" replace/>}/>
         <Route path="dashboard" element={<DashboardPage/>}/>
         <Route path="alumnos" element={<AlumnasPage/>}/>
         <Route path="alumnos/:id" element={<AlumnaDetallePage/>}/>
         <Route path="rutinas" element={<RutinasPage/>}/>
+        <Route path="catalogo" element={<CatalogoPage/>}/>
         <Route path="videos" element={<VideosPage/>}/>
         <Route path="agenda" element={<AgendaPage/>}/>
         <Route path="cobros" element={<CobrosPage/>}/>
