@@ -43,52 +43,39 @@ export default function AlumnasPage() {
   function set(k: string, v: any) { setForm(f => ({ ...f, [k]: v })) }
 
   async function guardar(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.nombre.trim()) { toast.error('Ingresa el nombre'); return }
-    setGuardando(true)
+  e.preventDefault()
+  if (!form.nombre.trim()) { toast.error('Ingresa el nombre'); return }
+  setGuardando(true)
+  const { data, error } = await supabase.from('alumnas').insert({
+    ...form,
+    instructor_id: user?.id,
+    peso_inicial:  form.peso_inicial  ? +form.peso_inicial  : null,
+    peso_objetivo: form.peso_objetivo ? +form.peso_objetivo : null,
+    peso_actual:   form.peso_inicial  ? +form.peso_inicial  : null,
+  }).select().single()
 
-    // 1. Insertar alumna en la base de datos
-    const { data, error } = await supabase.from('alumnas').insert({
-      ...form,
-      instructor_id: user?.id ?? null,
-      peso_inicial:  form.peso_inicial  ? +form.peso_inicial  : null,
-      peso_objetivo: form.peso_objetivo ? +form.peso_objetivo : null,
-      peso_actual:   form.peso_inicial  ? +form.peso_inicial  : null,
-    }).select().single()
+  if (error) { toast.error('Error al guardar'); setGuardando(false); return }
 
-    if (error) { toast.error('Error al guardar'); setGuardando(false); return }
-
-    // 2. Si tiene email, crear cuenta Auth y enviar invitación
-    if (form.email.trim()) {
-      // Crear usuario sin afectar la sesión activa
-      await supabaseAuth.auth.signUp({
-        email:    form.email.trim(),
-        password: crypto.randomUUID(), // contraseña aleatoria, la cambiará con el link
-        options: {
-          data: { nombre: form.nombre, role: 'alumna' },
-        },
-      })
-
-      // Enviar email para que establezca su propia contraseña
-      await supabase.auth.resetPasswordForEmail(form.email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
-
-      toast.success(`¡Alumna registrada! Se envió invitación a ${form.email}`)
-    } else {
-      toast.success('¡Alumna registrada!')
-    }
-
-    setModal(false)
-    setForm({
-      nombre: '', email: '', telefono: '', objetivo: '', nivel: 'Principiante',
-      peso_inicial: '', peso_objetivo: '',
-      fecha_inicio: new Date().toISOString().split('T')[0], notas: '', activa: true,
+  // Si tiene email, enviar invitación automáticamente
+  if (form.email.trim()) {
+    const { error: inviteError } = await supabase.functions.invoke('invite-alumna', {
+      body: { email: form.email.trim(), nombre: form.nombre.trim() }
     })
-    cargar()
-    setGuardando(false)
-    if (data) navigate(`/alumnos/${data.id}`)
+    if (inviteError) {
+      toast.error('Alumna creada pero no se pudo enviar el email de invitación')
+    } else {
+      toast.success('¡Alumna registrada! Le enviamos el email para crear su contraseña 📧')
+    }
+  } else {
+    toast.success('¡Alumna registrada!')
   }
+
+  setModal(false)
+  setForm({ nombre: '', email: '', telefono: '', objetivo: '', nivel: 'Principiante', peso_inicial: '', peso_objetivo: '', fecha_inicio: new Date().toISOString().split('T')[0], notas: '', activa: true })
+  cargar()
+  setGuardando(false)
+  if (data) navigate(`/alumnos/${data.id}`)
+}
 
   const filtradas = alumnas.filter(a =>
     !busqueda ||
