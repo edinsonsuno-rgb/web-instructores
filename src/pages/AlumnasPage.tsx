@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { createClient } from '@supabase/supabase-js'
 import { supabase, Alumna } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import Avatar from '@/components/ui/Avatar'
@@ -8,11 +7,7 @@ import { NivelBadge, ProgresBar, EmptyState, Modal } from '@/components/ui/index
 import toast from 'react-hot-toast'
 
 // Cliente sin sesión persistente — para crear cuentas sin afectar la sesión activa
-const supabaseAuth = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
-  { auth: { persistSession: false } }
-)
+
 
 const NIVELES = ['Principiante', 'Intermedio', 'Avanzado']
 
