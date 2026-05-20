@@ -33,15 +33,15 @@ interface CatalogoItem {
 }
 
 // ── Constantes ───────────────────────────────────────────────
-const DIAS = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
+const DIAS = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom']
 const DIAS_LABEL: Record<string, string> = {
-  lunes:'Lun', martes:'Mar', miercoles:'Mié', jueves:'Jue',
-  viernes:'Vie', sabado:'Sáb', domingo:'Dom'
+  lun: 'Lun', mar: 'Mar', mie: 'Mié', jue: 'Jue', vie: 'Vie', sab: 'Sáb', dom: 'Dom',
 }
 const DIAS_FULL: Record<string, string> = {
-  lunes:'Lunes', martes:'Martes', miercoles:'Miércoles', jueves:'Jueves',
-  viernes:'Viernes', sabado:'Sábado', domingo:'Domingo'
+  lun: 'Lunes', mar: 'Martes', mie: 'Miércoles', jue: 'Jueves',
+  vie: 'Viernes', sab: 'Sábado', dom: 'Domingo',
 }
+const DIAS_HOY = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab']
 
 const ZONAS: Record<string, { label: string; musculos: string[] }> = {
   tren_superior:   { label: 'Tren superior',   musculos: ['pecho','espalda','hombros','biceps','triceps'] },
