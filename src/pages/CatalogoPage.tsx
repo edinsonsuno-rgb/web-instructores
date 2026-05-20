@@ -11,13 +11,14 @@ interface CatalogoEjercicio {
   musculo: string | null
   foto_inicio_url: string | null
   foto_fin_url: string | null
+  duracion_seg: number
 }
 
 const ZONAS: Record<string, { label: string; musculos: string[] }> = {
-  tren_superior:  { label: 'Tren superior',  musculos: ['pecho','espalda','hombros','biceps','triceps'] },
-  tren_inferior:  { label: 'Tren inferior',  musculos: ['cuadriceps','isquiotibiales','gluteos','pantorrillas'] },
-  core:           { label: 'Core',            musculos: ['abdomen','lumbares'] },
-  cuerpo_completo:{ label: 'Cuerpo completo', musculos: [] },
+  tren_superior:   { label: 'Tren superior',   musculos: ['pecho','espalda','hombros','biceps','triceps'] },
+  tren_inferior:   { label: 'Tren inferior',   musculos: ['cuadriceps','isquiotibiales','gluteos','pantorrillas'] },
+  core:            { label: 'Core',             musculos: ['abdomen','lumbares'] },
+  cuerpo_completo: { label: 'Cuerpo completo',  musculos: [] },
 }
 
 const MUSCULO_LABELS: Record<string, string> = {
@@ -26,34 +27,31 @@ const MUSCULO_LABELS: Record<string, string> = {
   pantorrillas:'Pantorrillas', abdomen:'Abdomen', lumbares:'Lumbares',
 }
 
-// ── Tarjeta con animación crossfade entre las 2 fotos ────────
 function EjercicioCard({ ej, onEdit, onDelete }: {
-  ej: CatalogoEjercicio
-  onEdit: () => void
-  onDelete: () => void
+  ej: CatalogoEjercicio; onEdit: () => void; onDelete: () => void
 }) {
   const [showSecond, setShowSecond] = useState(false)
-
   useEffect(() => {
     if (!ej.foto_inicio_url || !ej.foto_fin_url) return
-    const t = setInterval(() => setShowSecond(s => !s), 3000)
+    const t = setInterval(() => setShowSecond(s => !s), 2000)
     return () => clearInterval(t)
   }, [ej.foto_inicio_url, ej.foto_fin_url])
 
+  const mins = Math.floor(ej.duracion_seg / 60)
+  const segs = ej.duracion_seg % 60
+
   return (
     <div className="df-card p-4 hover:border-df-violet/50 transition-all group">
-      {/* Imagen animada */}
       <div className="h-40 rounded-xl bg-df-purple/10 border border-df-border mb-3 overflow-hidden relative">
         {ej.foto_inicio_url ? (
           <>
             <img src={ej.foto_inicio_url} alt={ej.nombre}
               style={{ transition: 'opacity 1.5s ease-in-out' }}
-              className={`absolute inset-0 w-full h-full object-contain ${showSecond ? 'opacity-0' : 'opacity-100'}`}
-            />
+              className={`absolute inset-0 w-full h-full object-contain ${showSecond ? 'opacity-0' : 'opacity-100'}`}/>
             {ej.foto_fin_url && (
               <img src={ej.foto_fin_url} alt={ej.nombre}
-                className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-700 ${showSecond ? 'opacity-100' : 'opacity-0'}`}
-              />
+                style={{ transition: 'opacity 1.5s ease-in-out' }}
+                className={`absolute inset-0 w-full h-full object-contain ${showSecond ? 'opacity-100' : 'opacity-0'}`}/>
             )}
           </>
         ) : (
@@ -67,7 +65,7 @@ function EjercicioCard({ ej, onEdit, onDelete }: {
         {ej.nombre}
       </h3>
 
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className="text-xs bg-df-surface px-2 py-0.5 rounded-full text-df-muted">
           {ZONAS[ej.zona]?.label ?? ej.zona}
         </span>
@@ -76,6 +74,12 @@ function EjercicioCard({ ej, onEdit, onDelete }: {
             {MUSCULO_LABELS[ej.musculo] ?? ej.musculo}
           </span>
         )}
+      </div>
+
+      {/* Duración */}
+      <div className="flex items-center gap-1 text-xs text-df-muted mb-3">
+        <i className="fa-solid fa-clock text-df-violet"/>
+        <span>{mins > 0 ? `${mins}m ` : ''}{segs > 0 ? `${segs}s` : ''} estimado</span>
       </div>
 
       <div className="flex gap-2">
@@ -92,26 +96,22 @@ function EjercicioCard({ ej, onEdit, onDelete }: {
   )
 }
 
-// ── Selector de foto ─────────────────────────────────────────
 function FotoUpload({ label, preview, inputRef, onChange }: {
-  label: string
-  preview: string | null
-  inputRef: React.RefObject<HTMLInputElement>
-  onChange: (f: File) => void
+  label: string; preview: string | null
+  inputRef: React.RefObject<HTMLInputElement>; onChange: (f: File) => void
 }) {
   return (
     <div>
       <label className="block text-xs font-semibold text-df-muted mb-1.5">{label}</label>
       <div onClick={() => inputRef.current?.click()}
-        className="h-28 rounded-xl border border-dashed border-df-border bg-df-purple/5 flex items-center justify-center cursor-pointer hover:border-df-violet/50 transition-all overflow-hidden relative">
-        {preview ? (
-          <img src={preview} className="w-full h-full object-contain"/>
-        ) : (
-          <div className="text-center">
-            <i className="fa-solid fa-camera text-df-muted text-xl mb-1 block"/>
-            <span className="text-xs text-df-muted">Subir foto</span>
-          </div>
-        )}
+        className="h-28 rounded-xl border border-dashed border-df-border bg-df-purple/5 flex items-center justify-center cursor-pointer hover:border-df-violet/50 transition-all overflow-hidden">
+        {preview
+          ? <img src={preview} className="w-full h-full object-contain"/>
+          : <div className="text-center">
+              <i className="fa-solid fa-camera text-df-muted text-xl mb-1 block"/>
+              <span className="text-xs text-df-muted">Subir foto</span>
+            </div>
+        }
       </div>
       <input ref={inputRef} type="file" accept="image/*" className="hidden"
         onChange={e => e.target.files?.[0] && onChange(e.target.files[0])}/>
@@ -119,8 +119,7 @@ function FotoUpload({ label, preview, inputRef, onChange }: {
   )
 }
 
-// ── Página principal ─────────────────────────────────────────
-const FORM_INIT = { nombre: '', zona: 'tren_superior', musculo: '' }
+const FORM_INIT = { nombre: '', zona: 'tren_superior', musculo: '', duracion_seg: 60 }
 
 export default function CatalogoPage() {
   const { user } = useAuth()
@@ -132,13 +131,11 @@ export default function CatalogoPage() {
   const [busqueda, setBusqueda]     = useState('')
   const [zonaFiltro, setZonaFiltro] = useState('')
   const [musculoFiltro, setMusculoFiltro] = useState('')
-
   const [form, setForm]             = useState(FORM_INIT)
   const [fotoInicio, setFotoInicio] = useState<File | null>(null)
   const [fotoFin, setFotoFin]       = useState<File | null>(null)
   const [prevInicio, setPrevInicio] = useState<string | null>(null)
   const [prevFin, setPrevFin]       = useState<string | null>(null)
-
   const refInicio = useRef<HTMLInputElement>(null)
   const refFin    = useRef<HTMLInputElement>(null)
 
@@ -151,7 +148,7 @@ export default function CatalogoPage() {
     setLoading(false)
   }
 
-  function setF(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
+  function setF(k: string, v: any) { setForm(f => ({ ...f, [k]: v })) }
 
   function handleFoto(file: File, tipo: 'inicio' | 'fin') {
     const url = URL.createObjectURL(file)
@@ -170,23 +167,18 @@ export default function CatalogoPage() {
   function abrirModal(ej?: CatalogoEjercicio) {
     if (ej) {
       setEditando(ej)
-      setForm({ nombre: ej.nombre, zona: ej.zona, musculo: ej.musculo ?? '' })
-      setPrevInicio(ej.foto_inicio_url)
-      setPrevFin(ej.foto_fin_url)
+      setForm({ nombre: ej.nombre, zona: ej.zona, musculo: ej.musculo ?? '', duracion_seg: ej.duracion_seg })
+      setPrevInicio(ej.foto_inicio_url); setPrevFin(ej.foto_fin_url)
     } else {
-      setEditando(null)
-      setForm(FORM_INIT)
-      setPrevInicio(null)
-      setPrevFin(null)
-      setFotoInicio(null)
-      setFotoFin(null)
+      setEditando(null); setForm(FORM_INIT)
+      setPrevInicio(null); setPrevFin(null)
+      setFotoInicio(null); setFotoFin(null)
     }
     setModal(true)
   }
 
   function cerrarModal() {
-    setModal(false)
-    setEditando(null)
+    setModal(false); setEditando(null)
     setFotoInicio(null); setFotoFin(null)
     setPrevInicio(null); setPrevFin(null)
   }
@@ -200,37 +192,27 @@ export default function CatalogoPage() {
       let foto_fin_url    = editando?.foto_fin_url    ?? null
       if (fotoInicio) foto_inicio_url = await subirFoto(fotoInicio)
       if (fotoFin)    foto_fin_url    = await subirFoto(fotoFin)
-
       const payload = {
-        nombre: form.nombre.trim(),
-        zona:   form.zona,
+        nombre: form.nombre.trim(), zona: form.zona,
         musculo: form.musculo || null,
-        foto_inicio_url,
-        foto_fin_url,
-        created_by: user?.id,
+        duracion_seg: form.duracion_seg,
+        foto_inicio_url, foto_fin_url, created_by: user?.id,
       }
-
       const { error } = editando
         ? await supabase.from('catalogo_ejercicios').update(payload).eq('id', editando.id)
         : await supabase.from('catalogo_ejercicios').insert(payload)
-
       if (error) throw error
       toast.success(editando ? 'Ejercicio actualizado' : 'Ejercicio agregado al catálogo')
-      cerrarModal()
-      cargar()
-    } catch {
-      toast.error('Error al guardar')
-    } finally {
-      setGuardando(false)
-    }
+      cerrarModal(); cargar()
+    } catch { toast.error('Error al guardar') }
+    finally { setGuardando(false) }
   }
 
   async function eliminar(id: string) {
     if (!confirm('¿Eliminar este ejercicio del catálogo?')) return
     const { error } = await supabase.from('catalogo_ejercicios').delete().eq('id', id)
     if (error) { toast.error('Error al eliminar'); return }
-    toast.success('Ejercicio eliminado')
-    cargar()
+    toast.success('Ejercicio eliminado'); cargar()
   }
 
   const musculos  = zonaFiltro ? (ZONAS[zonaFiltro]?.musculos ?? []) : []
@@ -245,7 +227,6 @@ export default function CatalogoPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black text-white">Catálogo de ejercicios</h1>
         <button onClick={() => abrirModal()} className="df-btn px-5 py-2.5 text-sm flex items-center gap-2">
@@ -253,20 +234,14 @@ export default function CatalogoPage() {
         </button>
       </div>
 
-      {/* Buscador */}
       <div className="df-surface rounded-xl px-4 py-2.5 flex items-center gap-3 border border-df-border">
         <i className="fa-solid fa-magnifying-glass text-df-muted"/>
         <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
           placeholder="Buscar ejercicio..."
           className="bg-transparent text-white text-sm flex-1 outline-none placeholder:text-df-muted"/>
-        {busqueda && (
-          <button onClick={() => setBusqueda('')}>
-            <i className="fa-solid fa-xmark text-df-muted"/>
-          </button>
-        )}
+        {busqueda && <button onClick={() => setBusqueda('')}><i className="fa-solid fa-xmark text-df-muted"/></button>}
       </div>
 
-      {/* Filtro zona */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {[['', 'Todos'], ...Object.entries(ZONAS).map(([k, z]) => [k, z.label])].map(([k, label]) => (
           <button key={k} onClick={() => { setZonaFiltro(k); setMusculoFiltro('') }}
@@ -276,7 +251,6 @@ export default function CatalogoPage() {
         ))}
       </div>
 
-      {/* Sub-filtro músculo */}
       {musculos.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
           <button onClick={() => setMusculoFiltro('')}
@@ -292,7 +266,6 @@ export default function CatalogoPage() {
         </div>
       )}
 
-      {/* Grid */}
       {loading ? (
         <div className="flex justify-center py-16">
           <div className="w-8 h-8 border-4 border-df-border border-t-df-violet rounded-full animate-spin"/>
@@ -301,22 +274,16 @@ export default function CatalogoPage() {
         <EmptyState icon="fa-solid fa-dumbbell"
           title={busqueda ? 'Sin resultados' : 'Catálogo vacío'}
           sub={busqueda ? 'Intenta con otro nombre' : 'Agrega tu primer ejercicio al catálogo'}
-          action={!busqueda
-            ? <button onClick={() => abrirModal()} className="df-btn px-5 py-2 text-sm">+ Agregar ejercicio</button>
-            : undefined}
+          action={!busqueda ? <button onClick={() => abrirModal()} className="df-btn px-5 py-2 text-sm">+ Agregar ejercicio</button> : undefined}
         />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtrados.map(ej => (
-            <EjercicioCard key={ej.id} ej={ej}
-              onEdit={() => abrirModal(ej)}
-              onDelete={() => eliminar(ej.id)}
-            />
+            <EjercicioCard key={ej.id} ej={ej} onEdit={() => abrirModal(ej)} onDelete={() => eliminar(ej.id)}/>
           ))}
         </div>
       )}
 
-      {/* Modal crear / editar */}
       <Modal open={modal} onClose={cerrarModal} title={editando ? 'Editar ejercicio' : 'Nuevo ejercicio'}>
         <form onSubmit={guardar} className="space-y-4">
           <div>
@@ -328,8 +295,7 @@ export default function CatalogoPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-df-muted mb-1.5">Zona</label>
-              <select value={form.zona} onChange={e => { setF('zona', e.target.value); setF('musculo', '') }}
-                className="df-input w-full">
+              <select value={form.zona} onChange={e => { setF('zona', e.target.value); setF('musculo', '') }} className="df-input w-full">
                 {Object.entries(ZONAS).map(([k, z]) => <option key={k} value={k}>{z.label}</option>)}
               </select>
             </div>
@@ -345,19 +311,38 @@ export default function CatalogoPage() {
             </div>
           </div>
 
-          {/* Fotos */}
+          {/* Duración estimada */}
+          <div>
+            <label className="block text-xs font-semibold text-df-muted mb-1.5">
+              <i className="fa-solid fa-clock mr-1 text-df-violet"/>
+              Duración estimada del ejercicio
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 flex-1">
+                <input type="number" min="0" max="59"
+                  value={Math.floor(form.duracion_seg / 60)}
+                  onChange={e => setF('duracion_seg', (+e.target.value * 60) + (form.duracion_seg % 60))}
+                  className="df-input w-full text-center"/>
+                <span className="text-xs text-df-muted whitespace-nowrap">min</span>
+              </div>
+              <div className="flex items-center gap-2 flex-1">
+                <input type="number" min="0" max="59"
+                  value={form.duracion_seg % 60}
+                  onChange={e => setF('duracion_seg', (Math.floor(form.duracion_seg / 60) * 60) + +e.target.value)}
+                  className="df-input w-full text-center"/>
+                <span className="text-xs text-df-muted whitespace-nowrap">seg</span>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
-            <FotoUpload label="Posición inicial" preview={prevInicio}
-              inputRef={refInicio} onChange={f => handleFoto(f, 'inicio')}/>
-            <FotoUpload label="Posición final" preview={prevFin}
-              inputRef={refFin} onChange={f => handleFoto(f, 'fin')}/>
+            <FotoUpload label="Posición inicial" preview={prevInicio} inputRef={refInicio} onChange={f => handleFoto(f, 'inicio')}/>
+            <FotoUpload label="Posición final"   preview={prevFin}    inputRef={refFin}    onChange={f => handleFoto(f, 'fin')}/>
           </div>
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={cerrarModal}
-              className="flex-1 py-3 text-sm df-btn-outline border border-df-border rounded-xl">
-              Cancelar
-            </button>
+              className="flex-1 py-3 text-sm df-btn-outline border border-df-border rounded-xl">Cancelar</button>
             <button type="submit" disabled={guardando}
               className="flex-1 py-3 text-sm df-btn rounded-xl disabled:opacity-60">
               {guardando ? 'Guardando...' : editando ? 'Actualizar' : 'Agregar'}

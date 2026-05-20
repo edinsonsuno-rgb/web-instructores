@@ -21,14 +21,14 @@ create table if not exists alumnas (
   peso_actual   numeric,
   peso_objetivo numeric,
   fecha_inicio  date default current_date,
-  activa        boolean default true,        -- true = activa, false = desactivada (dejó de pagar, etc.)
+  activa        boolean default true,
   notas         text,
-  instructor_id uuid references profiles(id), -- profe que la gestiona
-  user_id       uuid references auth.users(id), -- cuenta de la alumna al iniciar sesión
+  instructor_id uuid references profiles(id),
+  user_id       uuid references auth.users(id),
   created_at    timestamptz default now()
 );
 
--- ── RUTINAS ──────────────────────────────────────────────────
+-- ── RUTINAS (sistema legacy — se mantiene por compatibilidad) ─
 create table if not exists rutinas (
   id           uuid default uuid_generate_v4() primary key,
   nombre       text not null,
@@ -42,7 +42,7 @@ create table if not exists rutinas (
   created_at   timestamptz default now()
 );
 
--- ── EJERCICIOS ───────────────────────────────────────────────
+-- ── EJERCICIOS (sistema legacy — se mantiene por compatibilidad) ─
 create table if not exists ejercicios (
   id            uuid default uuid_generate_v4() primary key,
   rutina_id     uuid references rutinas(id) on delete cascade,
@@ -55,7 +55,7 @@ create table if not exists ejercicios (
   orden         integer default 0
 );
 
--- ── ASIGNACIONES RUTINAS ─────────────────────────────────────
+-- ── ASIGNACIONES RUTINAS (sistema legacy) ────────────────────
 create table if not exists asignaciones_rutinas (
   id           uuid default uuid_generate_v4() primary key,
   alumna_id    uuid references alumnas(id) on delete cascade,
@@ -120,28 +120,83 @@ create table if not exists progreso_peso (
 );
 
 -- ── RECETAS (PDF descargables) ───────────────────────────────
--- Futuro: el profe sube PDFs y la alumna los descarga
 create table if not exists recetas (
   id          uuid default uuid_generate_v4() primary key,
   titulo      text not null,
   descripcion text,
-  archivo_url text,           -- URL del PDF en storage
-  categoria   text,           -- Ej: Desayuno, Almuerzo, Merienda
+  archivo_url text,
+  categoria   text,
   activa      boolean default true,
   created_by  uuid references profiles(id),
   created_at  timestamptz default now()
 );
 
+-- ── CATÁLOGO DE EJERCICIOS ───────────────────────────────────
+-- El owner sube los ejercicios con sus dos fotos (posición inicial y final).
+-- La animación crossfade entre foto_inicio_url y foto_fin_url se hace en el frontend.
+-- duracion_seg: tiempo estimado de ejecución del ejercicio (lo define el owner).
+create table if not exists catalogo_ejercicios (
+  id              uuid default uuid_generate_v4() primary key,
+  nombre          text not null,
+  zona            text not null check (zona in (
+                    'tren_superior','tren_inferior','core','cuerpo_completo'
+                  )),
+  musculo         text check (musculo in (
+                    'pecho','espalda','hombros','biceps','triceps',
+                    'cuadriceps','isquiotibiales','gluteos','pantorrillas',
+                    'abdomen','lumbares'
+                  )),
+  foto_inicio_url text,           -- posición inicial del ejercicio
+  foto_fin_url    text,           -- posición final del ejercicio
+  duracion_seg    integer default 60, -- duración estimada de ejecución (segundos)
+  created_by      uuid references profiles(id),
+  created_at      timestamptz default now()
+);
+
+-- ── RUTINA PERSONALIZADA POR ALUMNA ─────────────────────────
+-- Una rutina por alumna organizada por días de la semana.
+-- La profe asigna ejercicios a cada día y define descanso y series/reps.
+-- dia: día de la semana (lunes a domingo) o 'descanso'.
+-- descanso_seg: tiempo de descanso entre series que la profe define por alumna.
+-- orden: posición del ejercicio dentro del día.
+create table if not exists rutina_ejercicios (
+  id           uuid default uuid_generate_v4() primary key,
+  alumna_id    uuid references alumnas(id) on delete cascade,
+  ejercicio_id uuid references catalogo_ejercicios(id),
+  dia          text not null default 'lunes' check (dia in (
+                 'lunes','martes','miercoles','jueves','viernes','sabado','domingo'
+               )),
+  series       integer default 3,
+  repeticiones text default '12',
+  descanso_seg integer default 60, -- descanso entre series (lo ajusta la profe)
+  orden        integer default 0
+);
+
+-- ── DÍAS DE DESCANSO POR ALUMNA ──────────────────────────────
+-- La profe marca qué días son de descanso para cada alumna.
+-- Si un día está aquí, se muestra como descanso aunque tenga ejercicios.
+create table if not exists rutina_descansos (
+  id        uuid default uuid_generate_v4() primary key,
+  alumna_id uuid references alumnas(id) on delete cascade,
+  dia       text not null check (dia in (
+              'lunes','martes','miercoles','jueves','viernes','sabado','domingo'
+            )),
+  unique (alumna_id, dia)
+);
+
 -- ── ACTIVAR RLS EN TODAS LAS TABLAS ─────────────────────────
-alter table alumnas             enable row level security;
-alter table rutinas             enable row level security;
-alter table ejercicios          enable row level security;
+alter table alumnas              enable row level security;
+alter table rutinas              enable row level security;
+alter table ejercicios           enable row level security;
 alter table asignaciones_rutinas enable row level security;
-alter table sesiones            enable row level security;
-alter table pagos               enable row level security;
-alter table mensajes            enable row level security;
-alter table progreso_peso       enable row level security;
-alter table recetas             enable row level security;
+alter table sesiones             enable row level security;
+alter table pagos                enable row level security;
+alter table mensajes             enable row level security;
+alter table progreso_peso        enable row level security;
+alter table recetas              enable row level security;
+alter table catalogo_ejercicios  enable row level security;
+alter table rutina_ejercicios    enable row level security;
+alter table rutina_descansos     enable row level security;
 
 -- ============================================================
 -- POLÍTICAS RLS POR ROL
@@ -163,21 +218,21 @@ create policy "admin_sus_alumnas" on alumnas for all
 create policy "alumno_su_perfil" on alumnas for select
   using (user_id = auth.uid());
 
--- ── RUTINAS ──────────────────────────────────────────────────
+-- ── RUTINAS (legacy) ─────────────────────────────────────────
 create policy "owner_admin_todo_rutinas" on rutinas for all
   using (exists (select 1 from profiles where id = auth.uid() and role in ('owner','admin')));
 
 create policy "alumno_ver_rutinas" on rutinas for select
   using (exists (select 1 from profiles where id = auth.uid() and role = 'alumno'));
 
--- ── EJERCICIOS ───────────────────────────────────────────────
+-- ── EJERCICIOS (legacy) ──────────────────────────────────────
 create policy "owner_admin_todo_ejercicios" on ejercicios for all
   using (exists (select 1 from profiles where id = auth.uid() and role in ('owner','admin')));
 
 create policy "alumno_ver_ejercicios" on ejercicios for select
   using (exists (select 1 from profiles where id = auth.uid() and role = 'alumno'));
 
--- ── ASIGNACIONES RUTINAS ─────────────────────────────────────
+-- ── ASIGNACIONES RUTINAS (legacy) ────────────────────────────
 create policy "owner_todo_asignaciones" on asignaciones_rutinas for all
   using (exists (select 1 from profiles where id = auth.uid() and role = 'owner'));
 
@@ -252,6 +307,39 @@ create policy "alumno_ver_recetas_activas" on recetas for select
     and activa = true
   );
 
+-- ── CATÁLOGO DE EJERCICIOS ───────────────────────────────────
+create policy "owner_admin_catalogo" on catalogo_ejercicios for all
+  using (exists (select 1 from profiles where id = auth.uid() and role in ('owner','admin')));
+
+create policy "alumno_ver_catalogo" on catalogo_ejercicios for select
+  using (exists (select 1 from profiles where id = auth.uid() and role = 'alumno'));
+
+-- ── RUTINA EJERCICIOS ────────────────────────────────────────
+create policy "owner_todo_rutina_ejercicios" on rutina_ejercicios for all
+  using (exists (select 1 from profiles where id = auth.uid() and role = 'owner'));
+
+create policy "admin_sus_rutina_ejercicios" on rutina_ejercicios for all
+  using (
+    exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+    and exists (select 1 from alumnas where id = alumna_id and instructor_id = auth.uid())
+  );
+
+create policy "alumno_su_rutina" on rutina_ejercicios for select
+  using (exists (select 1 from alumnas where id = alumna_id and user_id = auth.uid()));
+
+-- ── RUTINA DESCANSOS ─────────────────────────────────────────
+create policy "owner_todo_descansos" on rutina_descansos for all
+  using (exists (select 1 from profiles where id = auth.uid() and role = 'owner'));
+
+create policy "admin_sus_descansos" on rutina_descansos for all
+  using (
+    exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+    and exists (select 1 from alumnas where id = alumna_id and instructor_id = auth.uid())
+  );
+
+create policy "alumno_sus_descansos" on rutina_descansos for select
+  using (exists (select 1 from alumnas where id = alumna_id and user_id = auth.uid()));
+
 -- ── STORAGE BUCKETS ──────────────────────────────────────────
 insert into storage.buckets (id, name, public)
 values ('fotos-dorita', 'fotos-dorita', true)
@@ -261,7 +349,11 @@ insert into storage.buckets (id, name, public)
 values ('recetas-pdf', 'recetas-pdf', true)
 on conflict (id) do nothing;
 
--- Fotos: cualquier autenticado puede subir y ver
+insert into storage.buckets (id, name, public)
+values ('ejercicios-fotos', 'ejercicios-fotos', true)
+on conflict (id) do nothing;
+
+-- Fotos alumnas: cualquier autenticado puede subir y ver
 create policy "fotos_subir" on storage.objects for insert
   with check (bucket_id = 'fotos-dorita' and auth.uid() is not null);
 
@@ -277,6 +369,16 @@ create policy "recetas_subir" on storage.objects for insert
 
 create policy "recetas_descargar" on storage.objects for select
   using (bucket_id = 'recetas-pdf' and auth.uid() is not null);
+
+-- Fotos ejercicios catálogo: solo owner/admin suben, todos ven
+create policy "ejercicios_fotos_subir" on storage.objects for insert
+  with check (
+    bucket_id = 'ejercicios-fotos'
+    and exists (select 1 from profiles where id = auth.uid() and role in ('owner','admin'))
+  );
+
+create policy "ejercicios_fotos_ver" on storage.objects for select
+  using (bucket_id = 'ejercicios-fotos');
 
 -- ── DATOS DE EJEMPLO ─────────────────────────────────────────
 insert into rutinas (nombre, descripcion, nivel, duracion_min, categoria) values
