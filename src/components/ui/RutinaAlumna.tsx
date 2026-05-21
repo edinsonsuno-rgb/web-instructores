@@ -155,14 +155,31 @@ export default function RutinaAlumna({ alumnaId }: { alumnaId: string }) {
     if (yaExiste) { toast.error('Ya está en este día'); return }
     setGuardando(true)
     const nuevoOrden = ejerciciosDia.length > 0 ? Math.max(...ejerciciosDia.map(r => r.orden)) + 1 : 0
+    
+    // Forzamos un string limpio y extraemos únicamente los 3 caracteres principales
+    // Esto destruye cualquier espacio invisible o carácter de codificación oculto
+    const diaPuro = String(diaActivo).replace(/[^a-z]/gi, '').toLowerCase().slice(0, 3);
+
     const { error } = await supabase.from('rutina_ejercicios').insert({
-      alumna_id: alumnaId, ejercicio_id: ej.id,
-      dia: diaActivo, series: 3, repeticiones: '12',
-      descanso_seg: 60, orden: nuevoOrden,
+      alumna_id: alumnaId, 
+      ejercicio_id: ej.id,
+      dia: diaPuro, // 👈 Enviamos el string 100% sanitizado
+      series: 3, 
+      repeticiones: '12',
+      descanso_seg: 60, 
+      orden: nuevoOrden,
     })
-    if (error) { toast.error('Error al agregar'); setGuardando(false); return }
+
+    if (error) { 
+      console.error("Error detallado de Supabase:", error);
+      toast.error(`Error: ${error.message}`); // Cambiado para ver el error real en el toast
+      setGuardando(false); 
+      return 
+    }
+
     toast.success(`${ej.nombre} agregado al ${DIAS_FULL[diaActivo]}`)
-    await cargar(); setGuardando(false)
+    await cargar(); 
+    setGuardando(false)
   }
 
   // Guardar edición
